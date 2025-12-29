@@ -112,9 +112,9 @@ const MapPreview: React.FC<MapPreviewProps> = ({ tracks }) => {
   const simplifiedTracks = useMemo(() => {
     return tracks.map((track) => {
       // Tolerance based on point count (more points = more simplification)
-      const tolerance = track.points.length > 10000 ? 0.0005 :
-                       track.points.length > 5000 ? 0.0003 :
-                       track.points.length > 1000 ? 0.0001 : 0;
+      const tolerance = track.points.length > 10000 ? 0.000125 :
+                       track.points.length > 5000 ? 0.000075 :
+                       track.points.length > 1000 ? 0.000025 : 0;
 
       const simplified = tolerance > 0
         ? simplifyTrack(track.points, tolerance)
