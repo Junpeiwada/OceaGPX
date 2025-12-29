@@ -56,6 +56,7 @@ class Store {
         };
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to load config:', err);
     }
     return { ...defaultData };
@@ -65,6 +66,7 @@ class Store {
     try {
       fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2));
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to save config:', err);
     }
   }

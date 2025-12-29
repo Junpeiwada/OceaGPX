@@ -67,6 +67,7 @@ ipcMain.handle('load-records', async (_event, dbPath: string) => {
     const records = loadRecordsFromDb(dbPath);
     return records;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to load records:', error);
     throw error;
   }
@@ -77,6 +78,7 @@ ipcMain.handle('load-tracks', async (_event, dbPath: string, recordIds: number[]
     const tracks = loadTracksFromDb(dbPath, recordIds);
     return tracks;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to load tracks:', error);
     throw error;
   }
@@ -189,7 +191,7 @@ ipcMain.handle('export-gpx-merged', async (_event, dbPath: string, recordIds: nu
   try {
     // Calculate total points and apply thinning proportionally to each track
     const totalPoints = tracks.reduce((sum, t) => sum + t.points.length, 0);
-    let originalTotal = totalPoints;
+    const originalTotal = totalPoints;
     let exportedTotal = 0;
     let avgIntervalSeconds: number | undefined;
 

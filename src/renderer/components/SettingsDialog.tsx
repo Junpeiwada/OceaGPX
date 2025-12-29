@@ -41,6 +41,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
       const loaded = await window.electronAPI.getSettings();
       setSettings(loaded);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to load settings:', err);
     } finally {
       setLoading(false);
@@ -59,6 +60,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
       await window.electronAPI.setSettings(settings);
       onClose();
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to save settings:', err);
     }
   };

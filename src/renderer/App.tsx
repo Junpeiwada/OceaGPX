@@ -96,42 +96,6 @@ const App: React.FC = () => {
     setSnackbar({ open: true, message, severity });
   };
 
-  // Load last DB path on mount
-  useEffect(() => {
-    const loadLastPath = async () => {
-      const lastPath = await window.electronAPI.getLastDbPath();
-      if (lastPath) {
-        await loadDatabase(lastPath);
-      }
-    };
-    loadLastPath();
-  }, []);
-
-  // Load tracks when selection changes
-  useEffect(() => {
-    const loadTracks = async () => {
-      const selectedIdArray = Array.from(selectedIds.ids) as number[];
-
-      if (selectedIdArray.length === 0 || !dbPath) {
-        setTracks([]);
-        return;
-      }
-
-      setLoadingTracks(true);
-      try {
-        const trackData = await window.electronAPI.loadTracks(dbPath, selectedIdArray);
-        setTracks(trackData);
-      } catch (err) {
-        console.error('Failed to load tracks:', err);
-        setTracks([]);
-      } finally {
-        setLoadingTracks(false);
-      }
-    };
-
-    loadTracks();
-  }, [selectedIds, dbPath]);
-
   // Load database
   const loadDatabase = useCallback(async (path: string) => {
     setLoading(true);
@@ -149,6 +113,43 @@ const App: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  // Load last DB path on mount
+  useEffect(() => {
+    const loadLastPath = async () => {
+      const lastPath = await window.electronAPI.getLastDbPath();
+      if (lastPath) {
+        await loadDatabase(lastPath);
+      }
+    };
+    loadLastPath();
+  }, [loadDatabase]);
+
+  // Load tracks when selection changes
+  useEffect(() => {
+    const loadTracks = async () => {
+      const selectedIdArray = Array.from(selectedIds.ids) as number[];
+
+      if (selectedIdArray.length === 0 || !dbPath) {
+        setTracks([]);
+        return;
+      }
+
+      setLoadingTracks(true);
+      try {
+        const trackData = await window.electronAPI.loadTracks(dbPath, selectedIdArray);
+        setTracks(trackData);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load tracks:', err);
+        setTracks([]);
+      } finally {
+        setLoadingTracks(false);
+      }
+    };
+
+    loadTracks();
+  }, [selectedIds, dbPath]);
 
   // Handle file selection
   const handleSelectFile = async () => {
