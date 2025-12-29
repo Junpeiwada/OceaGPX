@@ -24,6 +24,25 @@ export interface TrackData {
   points: TrackPoint[];
 }
 
+// App settings
+export interface AppSettings {
+  defaultOutputPath: string;
+  confirmOnExport: boolean;
+  maxPoints: number;  // Maximum points per GPX file (0 = unlimited)
+}
+
+// Export result with thinning info
+export interface ExportResult {
+  success: boolean;
+  filePath?: string;
+  error?: string;
+  thinningInfo?: {
+    originalPoints: number;
+    exportedPoints: number;
+    intervalSeconds?: number;  // Approximate interval in seconds
+  };
+}
+
 // Electron API types exposed via preload
 export interface ElectronAPI {
   platform: NodeJS.Platform;
@@ -34,6 +53,15 @@ export interface ElectronAPI {
   loadTracks: (dbPath: string, recordIds: number[]) => Promise<TrackData[]>;
   getLastDbPath: () => Promise<string | null>;
   setLastDbPath: (path: string) => Promise<void>;
+
+  // GPX export
+  exportGpxSingle: (dbPath: string, recordIds: number[]) => Promise<ExportResult[]>;
+  exportGpxMerged: (dbPath: string, recordIds: number[]) => Promise<ExportResult>;
+
+  // Settings
+  getSettings: () => Promise<AppSettings>;
+  setSettings: (settings: AppSettings) => Promise<void>;
+  selectOutputFolder: () => Promise<string | null>;
 }
 
 // Extend Window interface

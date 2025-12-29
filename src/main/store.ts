@@ -2,12 +2,33 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
+export interface WindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface AppSettings {
+  defaultOutputPath: string;
+  confirmOnExport: boolean;
+  maxPoints: number;  // Maximum points per GPX file (0 = unlimited)
+}
+
 interface StoreData {
   lastDbPath: string;
+  windowBounds: WindowBounds | null;
+  settings: AppSettings;
 }
 
 const defaultData: StoreData = {
   lastDbPath: '',
+  windowBounds: null,
+  settings: {
+    defaultOutputPath: '',
+    confirmOnExport: true,
+    maxPoints: 50000,
+  },
 };
 
 class Store {
@@ -23,7 +44,16 @@ class Store {
     try {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8');
-        return { ...defaultData, ...JSON.parse(raw) };
+        const saved = JSON.parse(raw);
+        // Deep merge for settings to preserve new default values
+        return {
+          ...defaultData,
+          ...saved,
+          settings: {
+            ...defaultData.settings,
+            ...(saved.settings || {}),
+          },
+        };
       }
     } catch (err) {
       console.error('Failed to load config:', err);

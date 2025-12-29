@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { RecordData, TrackData } from '../shared/types';
+import { RecordData, TrackData, ExportResult, AppSettings } from '../shared/types';
 
 // Expose APIs to renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -24,5 +24,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setLastDbPath: (path: string): Promise<void> => {
     return ipcRenderer.invoke('set-last-db-path', path);
+  },
+
+  // GPX export
+  exportGpxSingle: (dbPath: string, recordIds: number[]): Promise<ExportResult[]> => {
+    return ipcRenderer.invoke('export-gpx-single', dbPath, recordIds);
+  },
+
+  exportGpxMerged: (dbPath: string, recordIds: number[]): Promise<ExportResult> => {
+    return ipcRenderer.invoke('export-gpx-merged', dbPath, recordIds);
+  },
+
+  // Settings
+  getSettings: (): Promise<AppSettings> => {
+    return ipcRenderer.invoke('get-settings');
+  },
+
+  setSettings: (settings: AppSettings): Promise<void> => {
+    return ipcRenderer.invoke('set-settings', settings);
+  },
+
+  selectOutputFolder: (): Promise<string | null> => {
+    return ipcRenderer.invoke('select-output-folder');
   },
 });

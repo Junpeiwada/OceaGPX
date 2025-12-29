@@ -15,13 +15,15 @@ import {
 import {
   DataGrid,
   GridColDef,
-  GridRowId,
   GridRowSelectionModel,
 } from '@mui/x-data-grid';
 import SettingsIcon from '@mui/icons-material/Settings';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import SaveIcon from '@mui/icons-material/Save';
+import MergeIcon from '@mui/icons-material/CallMerge';
 import { RecordData, TrackData } from '../shared/types';
 import MapPreview from './components/MapPreview';
+import SettingsDialog from './components/SettingsDialog';
 
 // Date formatter
 const formatDateTime = (dateStr: string): string => {
@@ -70,16 +72,29 @@ const columns: GridColDef[] = [
   },
 ];
 
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error' | 'info';
+}
+
 const App: React.FC = () => {
   const [dbPath, setDbPath] = useState<string>('');
   const [records, setRecords] = useState<RecordData[]>([]);
   const [selectedIds, setSelectedIds] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
   const [filterText, setFilterText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [tracks, setTracks] = useState<TrackData[]>([]);
   const [loadingTracks, setLoadingTracks] = useState<boolean>(false);
+  const [exporting, setExporting] = useState<boolean>(false);
+  const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'info' });
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+
+  // Show snackbar message
+  const showMessage = (message: string, severity: 'success' | 'error' | 'info') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
   // Load last DB path on mount
   useEffect(() => {
@@ -120,7 +135,6 @@ const App: React.FC = () => {
   // Load database
   const loadDatabase = useCallback(async (path: string) => {
     setLoading(true);
-    setError(null);
     try {
       const data = await window.electronAPI.loadRecords(path);
       setRecords(data);
@@ -129,7 +143,7 @@ const App: React.FC = () => {
       setSelectedIds({ type: 'include', ids: new Set() });
       setTracks([]);
     } catch (err) {
-      setError(`データベースの読み込みに失敗しました: ${err}`);
+      showMessage(`データベースの読み込みに失敗しました: ${err}`, 'error');
       setRecords([]);
     } finally {
       setLoading(false);
@@ -168,7 +182,7 @@ const App: React.FC = () => {
       if (file.name.endsWith('.db') || file.name.endsWith('.sqlite') || file.name.endsWith('.sqlite3')) {
         await loadDatabase(file.path);
       } else {
-        setError('DBファイル（.db, .sqlite, .sqlite3）のみ対応しています');
+        showMessage('DBファイル（.db, .sqlite, .sqlite3）のみ対応しています', 'error');
       }
     }
   };
@@ -181,6 +195,71 @@ const App: React.FC = () => {
 
   const handleDeselectAll = () => {
     setSelectedIds({ type: 'include', ids: new Set() });
+  };
+
+  // Format thinning info message
+  const formatThinningInfo = (info: { originalPoints: number; exportedPoints: number; intervalSeconds?: number }) => {
+    const intervalText = info.intervalSeconds
+      ? `（約${info.intervalSeconds}秒間隔）`
+      : '';
+    return `${info.originalPoints.toLocaleString()} → ${info.exportedPoints.toLocaleString()}ポイントに間引き${intervalText}`;
+  };
+
+  // Handle GPX export - single files
+  const handleExportSingle = async () => {
+    const selectedIdArray = Array.from(selectedIds.ids) as number[];
+    if (selectedIdArray.length === 0 || !dbPath) return;
+
+    setExporting(true);
+    try {
+      const results = await window.electronAPI.exportGpxSingle(dbPath, selectedIdArray);
+      const successCount = results.filter(r => r.success).length;
+      const cancelCount = results.filter(r => !r.success && r.error === 'キャンセルされました').length;
+      const thinnedResults = results.filter(r => r.success && r.thinningInfo);
+
+      if (successCount > 0) {
+        let message = `${successCount}件のGPXファイルを出力しました`;
+        if (thinnedResults.length > 0) {
+          const info = thinnedResults[0].thinningInfo!;
+          message += `\n${formatThinningInfo(info)}`;
+        }
+        showMessage(message, 'success');
+      } else if (cancelCount === results.length) {
+        showMessage('エクスポートがキャンセルされました', 'info');
+      } else {
+        showMessage('エクスポートに失敗しました', 'error');
+      }
+    } catch (err) {
+      showMessage(`エクスポートに失敗しました: ${err}`, 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Handle GPX export - merged file
+  const handleExportMerged = async () => {
+    const selectedIdArray = Array.from(selectedIds.ids) as number[];
+    if (selectedIdArray.length === 0 || !dbPath) return;
+
+    setExporting(true);
+    try {
+      const result = await window.electronAPI.exportGpxMerged(dbPath, selectedIdArray);
+      if (result.success) {
+        let message = `GPXファイルを出力しました`;
+        if (result.thinningInfo) {
+          message += `\n${formatThinningInfo(result.thinningInfo)}`;
+        }
+        showMessage(message, 'success');
+      } else if (result.error === 'キャンセルされました') {
+        showMessage('エクスポートがキャンセルされました', 'info');
+      } else {
+        showMessage(`エクスポートに失敗しました: ${result.error}`, 'error');
+      }
+    } catch (err) {
+      showMessage(`エクスポートに失敗しました: ${err}`, 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Filter records
@@ -221,7 +300,7 @@ const App: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             OceaGPX
           </Typography>
-          <IconButton color="inherit" aria-label="settings">
+          <IconButton color="inherit" aria-label="settings" onClick={() => setSettingsOpen(true)}>
             <SettingsIcon />
           </IconButton>
         </Toolbar>
@@ -278,7 +357,7 @@ const App: React.FC = () => {
             </Box>
 
             {/* DataGrid */}
-            <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ flexGrow: 1, height: 0, minHeight: 200 }}>
               <DataGrid
                 rows={filteredRecords}
                 columns={columns}
@@ -351,14 +430,18 @@ const App: React.FC = () => {
               <Button
                 variant="contained"
                 color="primary"
-                disabled={selectedCount === 0}
+                startIcon={exporting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                onClick={handleExportSingle}
+                disabled={selectedCount === 0 || exporting}
               >
                 単一出力
               </Button>
               <Button
                 variant="contained"
                 color="secondary"
-                disabled={selectedCount === 0}
+                startIcon={exporting ? <CircularProgress size={20} color="inherit" /> : <MergeIcon />}
+                onClick={handleExportMerged}
+                disabled={selectedCount === 0 || exporting}
               >
                 結合出力
               </Button>
@@ -367,17 +450,20 @@ const App: React.FC = () => {
         </Paper>
       </Box>
 
-      {/* Error Snackbar */}
+      {/* Snackbar for notifications */}
       <Snackbar
-        open={!!error}
+        open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setError(null)}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="error" onClose={() => setError(null)}>
-          {error}
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 };
