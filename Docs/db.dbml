@@ -1,0 +1,37 @@
+// OceanPlot Database Schema
+// Database: SQLite
+// Path: /Users/junpeiwada/Dropbox/アプリ/OceanPlot/OceanPlotBackup 2/OceaDB.db
+
+Table "LCHFIL" {
+  "LCHレコードID" integer [pk, not null, note: '記録の一意識別子']
+  "LCH記録名" varchar [not null, note: '記録の名前（例：美浜、シイラの美浜）']
+  "LCH開始時刻" timestamp [note: '記録開始時刻（ローカルタイム、タイムゾーン情報なし）']
+  "LCH終了時刻" timestamp [note: '記録終了時刻（ローカルタイム、タイムゾーン情報なし）']
+  "LCH航行距離" real [note: '航行距離（単位：km？）']
+  "LCH表示F" int [not null, default: 1, note: '表示フラグ（0:非表示, 1:表示）']
+
+  Note: '航海・航行記録のヘッダ情報テーブル。各記録に対応するGPS位置データはLOCFILテーブルに格納される。'
+}
+
+Table "LOCFIL" {
+  "LOCID" integer [pk, increment, not null, note: '位置データの一意識別子']
+  "LOCレコードID" integer [not null, ref: > "LCHFIL"."LCHレコードID", note: 'LCHFILへの外部キー']
+  "LOC時刻" timestamp [not null, note: '記録時刻（ローカルタイム、1秒間隔で記録）']
+  "LOC緯度" real [not null, note: '緯度（WGS84、度単位）']
+  "LOC経度" real [not null, note: '経度（WGS84、度単位）']
+  "LOC速度" real [not null, note: '速度（単位：m/s？）']
+  "LOC精度" real [not null, note: 'GPS精度（単位：m）']
+
+  Note: 'GPS位置データテーブル。LOCレコードIDでLCHFILと紐付く。'
+}
+
+Table "PINFIL" {
+  "PINID" integer [pk, increment, not null, note: 'ピンの一意識別子']
+  "PIN時刻" timestamp [not null, note: 'ピン設定時刻（ローカルタイム）']
+  "PINlat" real [not null, note: '緯度（WGS84、度単位）']
+  "PINlon" real [not null, note: '経度（WGS84、度単位）']
+  "PIN表示テキスト" varchar [not null, default: '', note: '地図上に表示するテキスト']
+  "PIN備考" varchar [not null, default: '', note: '備考・メモ']
+
+  Note: 'お気に入りの場所やポイントを記録するピンテーブル。'
+}
